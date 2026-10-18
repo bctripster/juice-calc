@@ -1,6 +1,6 @@
 # Juice Calc
 
-An e-liquid mixing calculator with a recipe library and flavour stash tracker. It runs on Linux desktop and on Android, works offline, and keeps all of your data on your own device.
+An e-liquid mixing calculator with a recipe library and flavour stash tracker. It runs on Windows, Linux and Android, works offline, and keeps all of your data on your own device.
 
 ![Juice Calc mixing screen on desktop](docs/desktop-mix.png)
 
@@ -48,6 +48,12 @@ chmod +x JuiceCalc-*-x86_64.AppImage
 ```
 The AppImage runs on most 64-bit Linux distributions without installing anything. Only one copy of the app runs at a time, so your saves never overwrite each other.
 
+### Windows 10 and 11
+- **Installer:** run `JuiceCalc-Setup-*.exe`. You can choose the install folder, and it adds Start menu and desktop shortcuts.
+- **Portable:** `JuiceCalc-*-portable.exe` runs without installing.
+
+The app isn't code-signed, so Windows SmartScreen may say it "protected your PC". Click **More info**, then **Run anyway**.
+
 ### Android (APK)
 Requires Android 5.0 or newer.
 - **With a computer:** turn on USB debugging on the phone, then run `adb install -r JuiceCalc-*.apk`.
@@ -61,6 +67,7 @@ Nothing leaves your device. There are no accounts, no analytics and no network r
 
 | Platform | Location |
 | --- | --- |
+| Windows | `%APPDATA%\juice-calc\juicecalc.json` (File > Open data folder in the app) |
 | Linux | `~/.config/juice-calc/juicecalc.json` (File > Open data folder in the app) |
 | Android | The app's private storage. Use Export to make a copy you can keep or move. |
 
@@ -85,7 +92,8 @@ Requires Node.js 20 or newer.
 cd desktop
 npm install
 npm start          # run from source
-npm run dist       # build the AppImage into desktop/dist/
+npm run dist       # build the Linux AppImage into desktop/dist/
+npm run dist:win   # build the Windows installer and portable .exe (needs Wine on Linux)
 ```
 
 ### Android

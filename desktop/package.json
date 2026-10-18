@@ -1,11 +1,12 @@
 {
   "name": "juice-calc",
-  "version": "1.0.7",
+  "version": "1.0.10",
   "description": "E-liquid mixing calculator and recipe library",
   "main": "app/main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --linux AppImage"
+    "dist": "electron-builder --linux AppImage",
+    "dist:win": "electron-builder --win"
   },
   "author": "bctripster",
   "license": "MIT",
@@ -30,7 +31,34 @@
       "category": "Utility",
       "artifactName": "JuiceCalc-${version}-x86_64.AppImage"
     },
-    "publish": null
+    "publish": null,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "app/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "artifactName": "JuiceCalc-Setup-${version}.exe",
+      "shortcutName": "Juice Calc"
+    },
+    "portable": {
+      "artifactName": "JuiceCalc-${version}-portable.exe"
+    }
   },
   "repository": {
     "type": "git",

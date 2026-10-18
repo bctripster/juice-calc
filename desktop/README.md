@@ -1,10 +1,11 @@
 # Juice Calc (desktop)
 
-Electron app for Linux. All data is saved to `~/.config/juice-calc/juicecalc.json`
-(File > Open data folder in the app): recipes, nicotine base settings, flavour stash and mix log.
+Electron app for Linux and Windows. All data is saved to `~/.config/juice-calc/juicecalc.json` on Linux and
+`%APPDATA%\juice-calc\juicecalc.json` on Windows (File > Open data folder in the app): recipes, nicotine base settings, flavour stash and mix log.
 
 - Run from source: `npm install && npm start`
 - Build the AppImage: `npm run dist` (output in `dist/`)
+- Build for Windows: `npm run dist:win` makes an installer and a portable .exe in `dist/`. On Linux this needs Wine (`apt install wine`).
 - Versioning: bump the last number for each build (1.0.1, 1.0.2, ...) until a major feature release.
 
 ## Files
@@ -13,6 +14,7 @@ Electron app for Linux. All data is saved to `~/.config/juice-calc/juicecalc.jso
 - `app/pairings.js`: flavour types, keyword detection and the built-in pairing guide
 
 ## Changes
+- 1.0.10: First Windows build (installer and portable .exe for Windows 10/11, x64). Licence set to MIT. No app changes.
 - 1.0.7: "By volume / By weight" switch on the mixing sheet (saved as supplies.mixBy, volume by default).
   Volume mode hides grams and shows running bottle readings in ml; copied recipe text follows the mode.
 - 1.0.6: Suggested steep time on the Mix screen, based on the slowest flavour type in the recipe (rules in
