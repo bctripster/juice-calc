@@ -1,0 +1,1128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'">
+<title>Juice Calc</title>
+<link rel="stylesheet" href="fonts.css">
+<style>
+html { color-scheme: light; } body { margin: 0; } [hidden] { display: none !important; }
+/* Layout: workbench. Library rail, recipe form, sticky result sheet. Stacks to one column on phones. */
+:root {
+  --bg: #eef1f4;
+  --panel: #ffffff;
+  --ink: #17202b;
+  --muted: #5b6878;
+  --line: #d6dde5;
+  --accent: #2f5bd3;
+  --accent-ink: #ffffff;
+  --accent-soft: #e3eafc;
+  --pg: #6aa7e8;
+  --vg: #2f5bd3;
+  --nic: #d9a23a;
+  --flav: #c2589b;
+  --other: #8fa0b3;
+  --warn: #9a5a00;
+  --warn-bg: #fff3df;
+  --bad: #b3261e;
+  --bad-bg: #fde8e6;
+  --ok: #1d7a4a;
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Figtree", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141b; --panel: #171e27; --ink: #e6ebf1; --muted: #93a1b2; --line: #2a3542;
+  --accent: #7d9dff; --accent-ink: #0b1220; --accent-soft: #1f2a44;
+  --pg: #8cc0f5; --vg: #7d9dff; --nic: #e8b85a; --flav: #e083bd; --other: #6f8196;
+  --warn: #f2b45c; --warn-bg: #33270f; --bad: #ff8a80; --bad-bg: #3a1714; --ok: #6fd39b;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0f141b; --panel: #171e27; --ink: #e6ebf1; --muted: #93a1b2; --line: #2a3542;
+  --accent: #7d9dff; --accent-ink: #0b1220; --accent-soft: #1f2a44;
+  --pg: #8cc0f5; --vg: #7d9dff; --nic: #e8b85a; --flav: #e083bd; --other: #6f8196;
+  --warn: #f2b45c; --warn-bg: #33270f; --bad: #ff8a80; --bad-bg: #3a1714; --ok: #6fd39b;
+  color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--f-body); }
+.wrap { max-width: 1320px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 48px; display: grid; gap: 20px; }
+header.top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 20px; }
+h1 { font: 700 28px/1.1 var(--f-display); margin: 0; letter-spacing: -0.01em; }
+h1 span { color: var(--accent); }
+h2 { font: 600 13px/1.2 var(--f-body); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0; }
+.sync { font-size: 13px; color: var(--muted); }
+.grid { display: grid; gap: 20px; grid-template-columns: 1fr; align-items: start; }
+@media (min-width: 900px) { .grid { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); } }
+@media (min-width: 1180px) { .grid { grid-template-columns: 250px minmax(0, 1.1fr) minmax(0, 1fr); } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 16px; min-width: 0; }
+@media (min-width: 900px) { .sheet { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); } }
+@media (min-width: 900px) and (max-width: 1179px) { .library { grid-column: 1 / -1; } }
+
+label, .lbl { font-size: 13px; font-weight: 500; color: var(--muted); display: block; }
+input, textarea, select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; width: 100%; min-width: 0; }
+input[type="number"] { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+input:focus-visible, textarea:focus-visible, button:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+textarea { resize: vertical; min-height: 64px; }
+.unit { position: relative; }
+.unit input { padding-right: 52px; }
+.unit em { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); font-style: normal; font-size: 12px; color: var(--muted); pointer-events: none; font-family: var(--f-mono); }
+.row { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+.field { display: grid; gap: 4px; min-width: 0; }
+
+button { font: 600 14px/1 var(--f-body); border-radius: 6px; padding: 9px 14px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button.ghost { background: transparent; border-color: transparent; color: var(--muted); padding: 6px 8px; }
+button.ghost:hover { color: var(--bad); }
+button.danger { color: var(--bad); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.ratio { display: grid; gap: 6px; }
+.ratio-head { display: flex; justify-content: space-between; font-family: var(--f-mono); font-size: 14px; }
+.ratio-head b { font-weight: 600; }
+input[type="range"] { padding: 0; accent-color: var(--accent); background: transparent; border: 0; }
+.check { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink); }
+.check input { width: auto; }
+
+.flav { display: grid; gap: 8px; }
+.flav-row { display: grid; gap: 6px; grid-template-columns: minmax(0, 2.2fr) minmax(64px, 0.9fr) minmax(56px, 0.7fr) 30px; align-items: center; }
+.flav-row.head span { font-size: 12px; color: var(--muted); font-weight: 500; }
+.flav-row select { padding: 7px 4px; }
+.sub { font-size: 13px; color: var(--muted); }
+
+.bar { display: flex; height: 22px; border-radius: 5px; overflow: hidden; border: 1px solid var(--line); }
+.bar i { display: block; height: 100%; transition: width .25s ease; }
+@media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); }
+.legend span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; background: var(--c); vertical-align: -1px; }
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 8px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; white-space: normal; }
+th { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+td { font-family: var(--f-mono); font-size: 14px; }
+td:first-child { font-family: var(--f-body); font-size: 14px; }
+td:first-child::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: var(--c, transparent); margin-right: 8px; }
+tr.total td { font-weight: 600; border-bottom: 0; }
+td.g { font-weight: 600; }
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
+.stat { display: grid; gap: 2px; }
+.stat b { font: 600 20px/1.1 var(--f-mono); }
+.stat small { font-size: 12px; color: var(--muted); }
+.note { font-size: 13px; padding: 8px 10px; border-radius: 6px; }
+.note.warn { color: var(--warn); background: var(--warn-bg); }
+.note.bad { color: var(--bad); background: var(--bad-bg); }
+
+details.settings summary { cursor: pointer; font-size: 14px; font-weight: 600; }
+details.settings[open] summary { margin-bottom: 12px; }
+
+.lib-list { display: grid; gap: 4px; max-height: 520px; overflow-y: auto; }
+.lib-item { text-align: left; display: grid; gap: 2px; padding: 9px 10px; border-radius: 6px; border: 1px solid transparent; background: transparent; font-weight: 500; line-height: 1.3; }
+.lib-item small { font-weight: 400; color: var(--muted); font-size: 12px; }
+.lib-item.on { background: var(--accent-soft); border-color: var(--accent); }
+.empty { font-size: 13px; color: var(--muted); }
+.confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 14px; }
+.toast { font-size: 13px; color: var(--ok); min-height: 1.2em; }
+.badge { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--warn); background: var(--warn-bg); padding: 2px 6px; border-radius: 4px; margin-left: 6px; vertical-align: 2px; }
+
+/* tabs */
+.tabs { display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 3px; }
+.tabs button { border: 0; background: transparent; color: var(--muted); padding: 8px 16px; }
+body.by-volume .w-only { display: none; }
+.tabs button[aria-pressed="true"],
+.tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); }
+.head-right { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; }
+/* stash */
+.stash-grid { display: grid; gap: 20px; grid-template-columns: 1fr; align-items: start; }
+@media (min-width: 980px) { .stash-grid { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); } }
+.stash-table td, .stash-table th { vertical-align: top; }
+.stash-table td:first-child::before { display: none; }
+.stash-table td small, .muted { color: var(--muted); font-size: 12px; font-family: var(--f-body); display: block; white-space: normal; }
+.level { width: 70px; height: 5px; border-radius: 3px; background: var(--line); margin-top: 5px; margin-left: auto; overflow: hidden; }
+.level i { display: block; height: 100%; background: var(--ok); }
+.level.low i { background: var(--bad); }
+.row-actions { display: flex; gap: 4px; justify-content: flex-end; flex-wrap: wrap; }
+.row-actions button { padding: 6px 9px; font-size: 13px; }
+.inline-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; padding: 10px; background: var(--accent-soft); border-radius: 6px; }
+.inline-form .field { flex: 1 1 110px; }
+.chip { display: inline-block; font: 600 11px/1.4 var(--f-body); letter-spacing: .04em; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
+.chip.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.chip.short { color: var(--bad); background: var(--bad-bg); }
+.chip.missing { color: var(--warn); background: var(--warn-bg); }
+.st-ok { color: var(--ok); } .st-short { color: var(--bad); } .st-missing { color: var(--warn); } .st-untracked { color: var(--muted); }
+.idea { display: grid; gap: 6px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.idea:last-child { border-bottom: 0; }
+.idea-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.idea-head b { font: 600 16px/1.2 var(--f-display); }
+.idea ul { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; }
+.idea li { font-family: var(--f-body); }
+.idea li span { font-family: var(--f-mono); color: var(--muted); }
+.plain-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 14px; }
+.plain-list li { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.plain-list li > span:last-child { font-size: 13px; color: var(--muted); text-align: right; }
+.section { display: grid; gap: 10px; }
+.base-table input { width: 90px; text-align: right; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Juice<span>Calc</span></h1>
+    <div class="head-right">
+      <div class="tabs" role="tablist" aria-label="Sections">
+        <button type="button" role="tab" id="tab-mix" aria-selected="true" aria-controls="view-mix">Mix</button>
+        <button type="button" role="tab" id="tab-stash" aria-selected="false" aria-controls="view-stash">Stash</button>
+      </div>
+      <div class="sync" id="sync"><span id="saved-where">Saved on this computer</span> · v<span id="ver"></span></div>
+    </div>
+  </header>
+
+  <div class="grid" id="view-mix" role="tabpanel" aria-labelledby="tab-mix">
+    <!-- Library -->
+    <section class="panel library" aria-labelledby="lib-h">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <h2 id="lib-h">My recipes</h2>
+        <button id="new" type="button">New</button>
+      </div>
+      <div class="actions"><button id="export" type="button">Export</button><button id="import" type="button">Import</button></div>
+      <div id="import-panel" class="section note" style="background:var(--accent-soft)" hidden>
+        <div id="import-summary"></div>
+        <div class="actions"><button class="primary" id="imp-merge" type="button">Merge with my data</button><button class="danger" id="imp-replace" type="button">Replace my data</button><button id="imp-cancel" type="button">Cancel</button></div>
+        <div class="sub">Merge keeps everything you have and adds what's new. Replace swaps all your data for the file's; a backup of your current data is saved first.</div>
+      </div>
+      <input id="search" type="search" placeholder="Search name or flavour" aria-label="Search recipes">
+      <div class="lib-list" id="lib"></div>
+    </section>
+
+    <!-- Recipe form -->
+    <section class="panel" aria-labelledby="rec-h">
+      <div class="field">
+        <label for="name" id="rec-h">Recipe name</label>
+        <input id="name" type="text" placeholder="e.g. Strawberry custard">
+      </div>
+
+      <div class="row">
+        <div class="field"><label for="batch">Batch size</label><div class="unit"><input id="batch" type="number" min="1" step="1"><em>ml</em></div></div>
+        <div class="field"><label for="target">Target nicotine</label><div class="unit"><input id="target" type="number" min="0" step="0.5"><em>mg/ml</em></div></div>
+        <div class="field"><label for="steep">Steep time</label><div class="unit"><input id="steep" type="number" min="0" step="1"><em>days</em></div></div>
+      </div>
+      <div class="sub" id="steep-tip" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px"><span id="steep-tip-text"></span><button id="steep-use" type="button" hidden>Use</button></div>
+
+      <div class="ratio">
+        <div class="ratio-head"><span><b id="pgv">30</b> PG</span><label for="vg" style="margin:0">Target ratio</label><span><b id="vgv">70</b> VG</span></div>
+        <input id="vg" type="range" min="0" max="100" step="5" aria-label="Target VG percent">
+        <label class="check"><input id="maxvg" type="checkbox"> Max VG (fill the rest with VG, no added PG)</label>
+      </div>
+
+      <div class="flav">
+        <h2>Flavours</h2>
+        <div class="flav-row head"><span>Flavour</span><span>%</span><span>Base</span><span></span></div>
+        <div id="flavs" class="flav"></div>
+        <datalist id="stash-names"></datalist>
+        <div class="actions"><button id="addflav" type="button">Add flavour</button></div>
+        <div class="sub" id="flavsum"></div>
+      </div>
+
+      <div class="row">
+        <div class="field"><label for="addname">Additive / water</label><input id="addname" type="text" placeholder="e.g. Distilled water"></div>
+        <div class="field"><label for="addpct">Amount</label><div class="unit"><input id="addpct" type="number" min="0" step="0.5"><em>%</em></div></div>
+      </div>
+
+      <div class="field"><label for="notes">Notes</label><textarea id="notes" placeholder="Tasting notes, tweaks to try next time"></textarea></div>
+
+      <div class="actions">
+        <button class="primary" id="save" type="button">Save recipe</button>
+        <button id="saveas" type="button">Save as copy</button>
+        <button id="copy" type="button">Copy recipe text</button>
+        <button class="danger" id="del" type="button">Delete</button>
+      </div>
+      <div class="confirm" id="confirm" hidden><span>Delete this recipe for good?</span><button class="danger" id="del-yes" type="button">Delete</button><button id="del-no" type="button">Keep it</button></div>
+      <div class="toast" id="toast" role="status"></div>
+      <textarea id="copybox" readonly hidden aria-label="Recipe text to copy"></textarea>
+
+      <details class="settings">
+        <summary>My nicotine base and densities</summary>
+        <div style="display:grid;gap:14px">
+          <div class="row">
+            <div class="field"><label for="nicstr">Nicotine base strength</label><div class="unit"><input id="nicstr" type="number" min="0" step="1"><em>mg/ml</em></div></div>
+            <div class="field"><label for="nicpg">Base PG</label><div class="unit"><input id="nicpg" type="number" min="0" max="100" step="5"><em>%</em></div></div>
+            <div class="field"><label for="nicvg">Base VG</label><div class="unit"><input id="nicvg" type="number" min="0" max="100" step="5"><em>%</em></div></div>
+          </div>
+          <div class="row">
+            <div class="field"><label for="dnic">Nicotine</label><div class="unit"><input id="dnic" type="number" step="0.001"><em>g/ml</em></div></div>
+            <div class="field"><label for="dpg">PG</label><div class="unit"><input id="dpg" type="number" step="0.001"><em>g/ml</em></div></div>
+            <div class="field"><label for="dvg">VG</label><div class="unit"><input id="dvg" type="number" step="0.001"><em>g/ml</em></div></div>
+            <div class="field"><label for="dw">Water</label><div class="unit"><input id="dw" type="number" step="0.001"><em>g/ml</em></div></div>
+          </div>
+          <div class="sub">These apply to every recipe. Weights use pure nicotine at 1.01 g/ml, PG 1.036, VG 1.261 and water 1.0 unless you change them.</div>
+          <div class="actions"><button id="resetd" type="button">Reset densities</button></div>
+        </div>
+      </details>
+    </section>
+
+    <!-- Result sheet -->
+    <section class="panel sheet" aria-labelledby="res-h">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <h2 id="res-h">Mixing sheet</h2>
+        <div class="tabs" role="group" aria-label="Mix by">
+          <button type="button" id="by-volume" aria-pressed="true">By volume</button>
+          <button type="button" id="by-weight" aria-pressed="false">By weight</button>
+        </div>
+      </div>
+      <div>
+        <div class="bar" id="bar" aria-hidden="true"></div>
+      </div>
+      <div class="legend">
+        <span style="--c:var(--nic)">Nicotine base</span><span style="--c:var(--flav)">Flavours</span><span style="--c:var(--other)">Additive</span><span style="--c:var(--pg)">PG</span><span style="--c:var(--vg)">VG</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Ingredient</th><th>ml</th><th class="w-only">Grams</th><th>%</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div class="stats">
+        <div class="stat"><small>Nicotine</small><b id="s-nic">0</b><small>mg/ml</small></div>
+        <div class="stat"><small>Final ratio</small><b id="s-ratio">0/0</b><small>PG / VG</small></div>
+        <div class="stat w-only"><small>Total weight</small><b id="s-g">0</b><small>grams</small></div>
+        <div class="stat"><small>Batch cost</small><b id="s-cost">–</b><small id="s-cost-sub">add prices in Stash</small></div>
+      </div>
+      <div id="notes-out" style="display:grid;gap:8px"></div>
+      <div class="sub" id="running-tip"></div>
+      <div class="table-wrap"><table><thead><tr><th>Add</th><th id="running-h">Scale reads</th></tr></thead><tbody id="running"></tbody></table></div>
+      <div class="section">
+        <h2>Stock check</h2>
+        <div class="table-wrap"><table class="stash-table"><thead><tr><th>Ingredient</th><th>Need</th><th>In stash</th><th>Cost</th></tr></thead><tbody id="stock"></tbody></table></div>
+        <div class="actions"><button class="primary" id="mixed" type="button">I mixed this batch</button></div>
+        <div id="mix-confirm" class="section" hidden>
+          <div class="note" id="mix-summary" style="background:var(--accent-soft)"></div>
+          <div class="actions"><button class="primary" id="mix-yes" type="button">Take it out of my stash</button><button id="mix-no" type="button">Cancel</button></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="stash-grid" id="view-stash" role="tabpanel" aria-labelledby="tab-stash" hidden>
+    <section class="panel">
+      <div class="section">
+        <h2 id="sf-title">Add a flavour</h2>
+        <div class="row">
+          <div class="field"><label for="sf-name">Flavour</label><input id="sf-name" type="text" placeholder="e.g. Strawberry (Ripe)"></div>
+          <div class="field"><label for="sf-brand">Brand</label><input id="sf-brand" type="text" placeholder="e.g. TPA"></div>
+          <div class="field"><label for="sf-profile">Flavour type</label><select id="sf-profile"></select></div>
+        </div>
+        <div class="row">
+          <div class="field" id="sf-qty-wrap"><label for="sf-qty">Bottles</label><input id="sf-qty" type="number" min="1" step="1"></div>
+          <div class="field"><label for="sf-ml">Bottle size</label><div class="unit"><input id="sf-ml" type="number" min="0" step="1"><em>ml</em></div></div>
+          <div class="field"><label for="sf-price">Price per bottle</label><div class="unit"><input id="sf-price" type="number" min="0" step="0.01"><em class="cur">$</em></div></div>
+          <div class="field"><label for="sf-low">Warn below</label><div class="unit"><input id="sf-low" type="number" min="0" step="1"><em>ml</em></div></div>
+          <div class="field"><label for="sf-base">Base</label><select id="sf-base"><option value="pg">PG</option><option value="vg">VG</option><option value="water">Water</option></select></div>
+        </div>
+        <div class="row" id="sf-left-wrap" hidden>
+          <div class="field"><label for="sf-full">Full bottles on hand</label><input id="sf-full" type="number" min="0" step="1"></div>
+          <div class="field"><label for="sf-left">Left in the open bottle</label><div class="unit"><input id="sf-left" type="number" min="0" step="0.5"><em>ml</em></div></div>
+        </div>
+        <div class="actions"><button class="primary" id="sf-save" type="button">Add to stash</button><button id="sf-cancel" type="button" hidden>Cancel</button></div>
+        <div class="toast" id="stash-toast" role="status"></div>
+      </div>
+
+      <div class="section">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <h2>My flavours</h2>
+          <input id="stash-search" type="search" placeholder="Search stash" aria-label="Search stash" style="max-width:220px">
+        </div>
+        <div class="table-wrap"><table class="stash-table">
+          <thead><tr><th>Flavour</th><th>Left</th><th>Per ml</th><th></th></tr></thead>
+          <tbody id="stash-rows"></tbody>
+        </table></div>
+      </div>
+
+      <div class="section">
+        <h2>Base liquids</h2>
+        <div class="sub">Fill in the amount you have to track it. Leave In stock empty to skip tracking.</div>
+        <div class="table-wrap"><table class="base-table">
+          <thead><tr><th>Liquid</th><th>In stock (ml)</th><th>Bottle (ml)</th><th>Bottle price</th></tr></thead>
+          <tbody>
+            <tr><td>Nicotine base</td><td><input id="b-nic-left" type="number" min="0" step="1" aria-label="Nicotine base in stock"></td><td><input id="b-nic-ml" type="number" min="0" step="1" aria-label="Nicotine base bottle size"></td><td><input id="b-nic-price" type="number" min="0" step="0.01" aria-label="Nicotine base bottle price"></td></tr>
+            <tr><td>PG</td><td><input id="b-pg-left" type="number" min="0" step="1" aria-label="PG in stock"></td><td><input id="b-pg-ml" type="number" min="0" step="1" aria-label="PG bottle size"></td><td><input id="b-pg-price" type="number" min="0" step="0.01" aria-label="PG bottle price"></td></tr>
+            <tr><td>VG</td><td><input id="b-vg-left" type="number" min="0" step="1" aria-label="VG in stock"></td><td><input id="b-vg-ml" type="number" min="0" step="1" aria-label="VG bottle size"></td><td><input id="b-vg-price" type="number" min="0" step="0.01" aria-label="VG bottle price"></td></tr>
+          </tbody>
+        </table></div>
+        <div class="row" style="max-width:260px"><div class="field"><label for="currency">Currency symbol</label><input id="currency" type="text" maxlength="4"></div></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="section">
+        <h2>Ideas from your stash</h2>
+        <div class="sub">Known combinations you can mix with what you have. The percentages are starting points, so adjust them for your brands.</div>
+        <div id="ideas"></div>
+      </div>
+      <div class="section">
+        <h2>Worth buying next</h2>
+        <ul class="plain-list" id="buy-next"></ul>
+      </div>
+      <div class="section">
+        <h2>What can I make</h2>
+        <ul class="plain-list" id="can-make"></ul>
+      </div>
+      <div class="section">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+          <h2>Shopping list</h2>
+          <button id="copy-shop" type="button">Copy list</button>
+        </div>
+        <ul class="plain-list" id="shopping"></ul>
+      </div>
+      <div class="section">
+        <h2>Mix log</h2>
+        <ul class="plain-list" id="history"></ul>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script src="pairings.js"></script>
+<script src="stash.js"></script>
+<script>
+// ---------- maths ----------
+const DEFAULT_DENS = { nic: 1.01, pg: 1.036, vg: 1.261, water: 1.0 };
+
+function carrierDensity(pg, vg, d) {
+  const other = Math.max(0, 100 - pg - vg);
+  return (pg * d.pg + vg * d.vg + other * d.water) / 100;
+}
+
+/** Pure calculation. r: recipe, s: supplies {nic:{strength,pg,vg}, dens}. */
+function calc(r, s) {
+  const d = s.dens, V = Math.max(0, +r.batch || 0);
+  const out = { rows: [], warnings: [], errors: [] };
+  const nicS = +s.nic.strength || 0, target = Math.max(0, +r.target || 0);
+  let nPg = Math.max(0, +s.nic.pg || 0), nVg = Math.max(0, +s.nic.vg || 0);
+  if (nPg + nVg > 100) {
+    out.warnings.push(`Your nicotine base is set to ${nPg}% PG and ${nVg}% VG, which is over 100%. It's treated as ${Math.round(nPg / (nPg + nVg) * 100)}/${Math.round(nVg / (nPg + nVg) * 100)} until you fix it.`);
+    const k = 100 / (nPg + nVg); nPg *= k; nVg *= k;
+  }
+  const nOther = Math.max(0, 100 - nPg - nVg);
+
+  let nicVol = 0;
+  if (target > 0) {
+    if (nicS <= 0) out.errors.push("Set your nicotine base strength to mix a nicotine recipe.");
+    else if (target > nicS) out.errors.push(`Your base is ${nicS} mg/ml, so it can't reach ${target} mg/ml.`);
+    else nicVol = V * target / nicS;
+  }
+  let pgIn = nicVol * nPg / 100, vgIn = nicVol * nVg / 100, otherIn = nicVol * nOther / 100;
+
+  // nicotine base density: pure nicotine fraction plus its carrier
+  const nicFrac = nicS / (d.nic * 1000);
+  const nicDens = nicFrac * d.nic + (1 - nicFrac) * carrierDensity(nPg, nVg, d);
+  if (nicVol > 0) out.rows.push({ kind: "nic", name: `Nicotine base (${nicS} mg/ml)`, ml: nicVol, g: nicVol * nicDens });
+
+  let flavTotal = 0;
+  for (const f of r.flavours || []) {
+    const pct = Math.max(0, +f.pct || 0);
+    if (!pct) continue;
+    const vol = V * pct / 100;
+    const fpg = f.base === "vg" ? 0 : f.base === "water" ? 0 : 100;
+    const fvg = f.base === "vg" ? 100 : 0;
+    pgIn += vol * fpg / 100; vgIn += vol * fvg / 100; otherIn += vol * (100 - fpg - fvg) / 100;
+    flavTotal += vol;
+    out.rows.push({ kind: "flav", name: f.name || "Unnamed flavour", fname: f.name, ml: vol, g: vol * carrierDensity(fpg, fvg, d) });
+  }
+
+  const addVol = V * Math.max(0, +r.additive?.pct || 0) / 100;
+  if (addVol > 0) { otherIn += addVol; out.rows.push({ kind: "other", name: r.additive.name || "Additive", ml: addVol, g: addVol * d.water }); }
+
+  const fixed = nicVol + flavTotal + addVol;
+  const remaining = V - fixed;
+  if (remaining < -1e-9) {
+    out.errors.push(`Nicotine, flavours and additive add up to ${fmt(fixed)} ml, more than the ${fmt(V)} ml batch.`);
+  }
+  const room = Math.max(0, remaining);
+  let vgAdd, pgAdd;
+  if (r.maxVg) { vgAdd = room; pgAdd = 0; }
+  else {
+    const want = V * (+r.vg || 0) / 100 - vgIn;
+    vgAdd = Math.min(Math.max(0, want), room);
+    pgAdd = room - vgAdd;
+    if (V > 0 && Math.abs(vgAdd - want) > 1e-6) {
+      const closest = Math.round((vgIn + vgAdd) / V * 100);
+      out.warnings.push(`${r.vg}% VG isn't reachable with these ingredients. The closest is ${closest}% VG.`);
+    }
+  }
+  if (pgAdd > 1e-9) out.rows.push({ kind: "pg", name: "PG", ml: pgAdd, g: pgAdd * d.pg });
+  if (vgAdd > 1e-9) out.rows.push({ kind: "vg", name: "VG", ml: vgAdd, g: vgAdd * d.vg });
+
+  const pg = pgIn + pgAdd, vg = vgIn + vgAdd, other = otherIn;
+  const totalMl = out.rows.reduce((a, x) => a + x.ml, 0);
+  out.totalMl = totalMl;
+  out.totalG = out.rows.reduce((a, x) => a + x.g, 0);
+  out.pgPct = totalMl ? pg / totalMl * 100 : 0;
+  out.vgPct = totalMl ? vg / totalMl * 100 : 0;
+  out.otherPct = totalMl ? other / totalMl * 100 : 0;
+  out.nicFinal = totalMl ? nicVol * nicS / totalMl : 0;
+  out.flavPct = V ? flavTotal / V * 100 : 0;
+  for (const x of out.rows) x.pct = totalMl ? x.ml / totalMl * 100 : 0;
+  return out;
+}
+
+function fmt(n, dp = 2) {
+  if (!isFinite(n)) return "0";
+  return (Math.round(n * 10 ** dp) / 10 ** dp).toFixed(dp);
+}
+
+if (typeof module !== "undefined") { module.exports = { calc, DEFAULT_DENS }; }
+</script>
+
+<script>
+if (typeof document !== "undefined") (function () {
+  const $ = (id) => document.getElementById(id);
+  const LS_RECIPES = "juicecalc.recipes.v1", LS_SUPPLIES = "juicecalc.supplies.v1", LS_STASH = "juicecalc.stash.v1", LS_HISTORY = "juicecalc.history.v1";
+  const lsGet = (k, f) => { try { const v = window.juiceStore.get(k); return v == null ? f : v; } catch { return f; } };
+  const lsSet = (k, v) => { try { window.juiceStore.set(k, v); } catch {} };
+
+  const EXAMPLE = {
+    id: null, example: true, name: "Strawberry custard (example)", batch: 30, target: 3, steep: 7, vg: 70, maxVg: false,
+    flavours: [{ name: "Strawberry", pct: 5, base: "pg" }, { name: "Vanilla custard", pct: 4, base: "pg" }, { name: "Sweetener", pct: 0.5, base: "pg" }],
+    additive: { name: "", pct: 0 }, notes: "Example recipe. Change anything, then Save to keep your own copy."
+  };
+  const blank = () => ({ id: null, name: "", batch: 30, target: 3, steep: 0, vg: 70, maxVg: false, flavours: [{ name: "", pct: 0, base: "pg" }], additive: { name: "", pct: 0 }, notes: "" });
+
+  let supplies = Object.assign({ nic: { strength: 100, pg: 100, vg: 0 }, dens: { ...DEFAULT_DENS } }, lsGet(LS_SUPPLIES, {}));
+  let recipes = lsGet(LS_RECIPES, []);
+  let cur = structuredClone(recipes[0] || EXAMPLE);
+  let stash = lsGet(LS_STASH, null) || { items: [], base: { nic: {}, pg: {}, vg: {} }, currency: "$" };
+  stash.base = Object.assign({ nic: {}, pg: {}, vg: {} }, stash.base || {});
+  let history = lsGet(LS_HISTORY, []);
+  const saveStash = () => window.juiceStore.set(LS_STASH, JSON.parse(JSON.stringify(stash, (k, v) => (k === "_confirm" ? undefined : v))));
+  const saveHistory = () => window.juiceStore.set(LS_HISTORY, history);
+  const money = (n) => (stash.currency || "") + fmt(n);
+
+  // ---------- storage ----------
+  async function persist(r) {
+    const { id } = r;
+    { const i = recipes.findIndex((x) => x.id === id); if (i >= 0) recipes[i] = structuredClone(r); else recipes.unshift(structuredClone(r)); window.juiceStore.set(LS_RECIPES, recipes); renderLib(); }
+  }
+  async function remove(id) {
+    { recipes = recipes.filter((x) => x.id !== id); lsSet(LS_RECIPES, recipes); renderLib(); }
+  }
+  function saveSupplies() {
+    lsSet(LS_SUPPLIES, supplies);
+  }
+
+  // ---------- form <-> state ----------
+  function fillForm() {
+    $("name").value = cur.name; $("batch").value = cur.batch; $("target").value = cur.target; $("steep").value = cur.steep || "";
+    $("vg").value = cur.vg; $("maxvg").checked = !!cur.maxVg; $("addname").value = cur.additive?.name || ""; $("addpct").value = cur.additive?.pct || "";
+    $("notes").value = cur.notes || "";
+    renderFlavs();
+  }
+  function fillSupplies() {
+    $("nicstr").value = supplies.nic.strength; $("nicpg").value = supplies.nic.pg; $("nicvg").value = supplies.nic.vg;
+    $("dnic").value = supplies.dens.nic; $("dpg").value = supplies.dens.pg; $("dvg").value = supplies.dens.vg; $("dw").value = supplies.dens.water;
+  }
+  function readForm() {
+    cur.name = $("name").value; cur.batch = +$("batch").value; cur.target = +$("target").value; cur.steep = +$("steep").value || 0;
+    cur.vg = +$("vg").value; cur.maxVg = $("maxvg").checked; cur.additive = { name: $("addname").value, pct: +$("addpct").value || 0 };
+    cur.notes = $("notes").value;
+    supplies.nic = { strength: +$("nicstr").value || 0, pg: +$("nicpg").value || 0, vg: +$("nicvg").value || 0 };
+    supplies.dens = { nic: +$("dnic").value || DEFAULT_DENS.nic, pg: +$("dpg").value || DEFAULT_DENS.pg, vg: +$("dvg").value || DEFAULT_DENS.vg, water: +$("dw").value || DEFAULT_DENS.water };
+  }
+
+  function renderFlavs() {
+    const box = $("flavs"); box.textContent = "";
+    cur.flavours.forEach((f, i) => {
+      const row = document.createElement("div"); row.className = "flav-row";
+      row.innerHTML = `<input type="text" placeholder="Flavour name" aria-label="Flavour name" id="fn${i}" list="stash-names">
+        <div class="unit"><input type="number" min="0" step="0.25" aria-label="Flavour percent" id="fp${i}" style="padding-right:26px"><em>%</em></div>
+        <select aria-label="Flavour base" id="fb${i}"><option value="pg">PG</option><option value="vg">VG</option><option value="water">Water</option></select>
+        <button class="ghost" type="button" aria-label="Remove flavour">✕</button>`;
+      const [n, p, b] = [row.querySelector("#fn" + i), row.querySelector("#fp" + i), row.querySelector("#fb" + i)];
+      n.value = f.name; p.value = f.pct || ""; b.value = f.base || "pg";
+      n.oninput = () => {
+        f.name = n.value;
+        const it = matchItem(stash.items, f.name);
+        if (it && it.base) { f.base = it.base; b.value = it.base; }
+        render();
+      };
+      p.oninput = () => { f.pct = +p.value || 0; render(); };
+      b.onchange = () => { f.base = b.value; render(); };
+      row.querySelector("button").onclick = () => { cur.flavours.splice(i, 1); renderFlavs(); render(); };
+      box.appendChild(row);
+    });
+  }
+
+  const COLORS = { nic: "var(--nic)", flav: "var(--flav)", other: "var(--other)", pg: "var(--pg)", vg: "var(--vg)" };
+  function render() {
+    const res = calc(cur, supplies);
+    $("pgv").textContent = cur.maxVg ? "–" : 100 - cur.vg; $("vgv").textContent = cur.maxVg ? "max" : cur.vg;
+    $("vg").disabled = !!cur.maxVg;
+    $("flavsum").textContent = `Total flavour ${fmt(res.flavPct, 2)}%`;
+    const sp = recipeSteep(cur);
+    if (sp) {
+      const mid = Math.round((sp.min + sp.max) / 2);
+      $("steep-tip-text").textContent = `Suggested steep: ${sp.min === sp.max ? sp.min : sp.min + "–" + sp.max} days, because of the ${sp.drivers.join(" and ").toLowerCase()}${sp.highVg ? ". High VG mixes can take a few days longer" : ""}.`;
+      $("steep-use").hidden = +cur.steep === mid; $("steep-use").textContent = `Use ${mid} days`; $("steep-use").dataset.days = mid;
+    } else {
+      $("steep-tip-text").textContent = cur.flavours.some((f) => f.pct > 0) ? "No steep suggestion: none of these flavours are recognised. Fruit mixes usually need 1–3 days and creams or desserts 1–2 weeks." : "";
+      $("steep-use").hidden = true;
+    }
+
+    const tb = $("rows"); tb.textContent = "";
+    for (const x of res.rows) {
+      const tr = document.createElement("tr"); tr.style.setProperty("--c", COLORS[x.kind]);
+      const td = (t, c) => { const e = document.createElement("td"); e.textContent = t; if (c) e.className = c; tr.appendChild(e); };
+      td(x.name); td(fmt(x.ml), byWeight ? "" : "g"); td(fmt(x.g), byWeight ? "g w-only" : "w-only"); td(fmt(x.pct, 1));
+      tb.appendChild(tr);
+    }
+    const tt = document.createElement("tr"); tt.className = "total";
+    tt.innerHTML = `<td>Total</td><td>${fmt(res.totalMl)}</td><td class="w-only">${fmt(res.totalG)}</td><td>100.0</td>`;
+    tb.appendChild(tt);
+
+    const bar = $("bar"); bar.textContent = "";
+    for (const x of res.rows) { const i = document.createElement("i"); i.style.width = x.pct + "%"; i.style.background = COLORS[x.kind]; i.title = x.name; bar.appendChild(i); }
+
+    const run = $("running"); run.textContent = ""; let acc = 0;
+    $("running-h").textContent = byWeight ? "Scale reads" : "Bottle reads";
+    $("running-tip").textContent = byWeight ? "Mixing by weight: tare the bottle, then add each ingredient until the scale reaches the running total." : "Mixing by volume: add each ingredient in order. The running total is what a graduated bottle should read.";
+    for (const x of res.rows) { acc += byWeight ? x.g : x.ml; const tr = document.createElement("tr"); tr.style.setProperty("--c", COLORS[x.kind]);
+      const a = document.createElement("td"); a.textContent = x.name; const b = document.createElement("td"); b.textContent = fmt(acc) + (byWeight ? " g" : " ml"); tr.append(a, b); run.appendChild(tr); }
+
+    $("s-nic").textContent = fmt(res.nicFinal, 1);
+    $("s-ratio").textContent = `${Math.round(res.pgPct)}/${Math.round(res.vgPct)}`;
+    $("s-g").textContent = fmt(res.totalG, 1);
+
+    const no = $("notes-out"); no.textContent = "";
+    for (const m of res.errors) { const d = document.createElement("div"); d.className = "note bad"; d.textContent = m; no.appendChild(d); }
+    for (const m of res.warnings) { const d = document.createElement("div"); d.className = "note warn"; d.textContent = m; no.appendChild(d); }
+    if (res.otherPct > 0.05) { const d = document.createElement("div"); d.className = "sub"; d.textContent = `Ratio excludes ${fmt(res.otherPct, 1)}% water or other additives.`; no.appendChild(d); }
+    $("del").disabled = !cur.id;
+
+    const chk = stockCheck(res.rows, stash);
+    const st = $("stock"); st.textContent = "";
+    for (const l of chk.lines) {
+      const tr = document.createElement("tr");
+      const have = l.status === "missing" ? "Not in stash" : l.status === "untracked" ? "Not tracked" : fmt(l.haveMl, 1) + " ml";
+      [[l.name], [fmt(l.needMl) + " ml"], [have, "st-" + l.status], [l.cost != null ? money(l.cost) : "–"]].forEach(([t, c]) => {
+        const td = document.createElement("td"); td.textContent = t; if (c) td.className = c; tr.appendChild(td);
+      });
+      st.appendChild(tr);
+    }
+    if (chk.cost > 0) {
+      $("s-cost").textContent = money(chk.cost);
+      $("s-cost-sub").textContent = chk.costComplete ? `${money(res.totalMl ? chk.cost / res.totalMl * 10 : 0)} per 10 ml` : "some prices missing";
+    } else { $("s-cost").textContent = "–"; $("s-cost-sub").textContent = "add prices in Stash"; }
+    $("mix-confirm").hidden = true;
+    lastCheck = { res, chk };
+  }
+  let lastCheck = null;
+  let byWeight = supplies.mixBy === "weight";
+  function applyMixBy() {
+    document.body.classList.toggle("by-volume", !byWeight);
+    $("by-volume").setAttribute("aria-pressed", !byWeight); $("by-weight").setAttribute("aria-pressed", byWeight);
+  }
+
+  function recipeSteep(r) {
+    const fl = (r.flavours || []).map((f) => {
+      const it = matchItem(stash.items, f.name);
+      const profile = it ? (it.profile === "other" ? null : (it.profile || detectProfile(it.name))) : detectProfile(f.name);
+      return { profile, pct: +f.pct || 0 };
+    });
+    const vg = r.maxVg ? 90 : +r.vg || 0;
+    return steepFor(fl, vg);
+  }
+  function steepDaysFor(r) {
+    if (+r.steep > 0) return +r.steep;
+    const sp = recipeSteep(r);
+    return sp ? Math.round((sp.min + sp.max) / 2) : 0;
+  }
+
+  function renderLib() {
+    const q = $("search").value.trim().toLowerCase();
+    const box = $("lib"); box.textContent = "";
+    const list = recipes.filter((r) => !q || (r.name || "").toLowerCase().includes(q) || (r.flavours || []).some((f) => (f.name || "").toLowerCase().includes(q)));
+    if (!recipes.length) { const p = document.createElement("p"); p.className = "empty"; p.textContent = "No saved recipes yet. Fill in the form and press Save recipe."; box.appendChild(p); return; }
+    if (!list.length) { const p = document.createElement("p"); p.className = "empty"; p.textContent = "No recipes match that search."; box.appendChild(p); return; }
+    for (const r of list) {
+      const b = document.createElement("button"); b.type = "button"; b.className = "lib-item" + (r.id === cur.id ? " on" : "");
+      const t = document.createElement("span"); t.textContent = r.name || "Untitled recipe";
+      const s = document.createElement("small");
+      s.textContent = `${(r.flavours || []).filter((f) => f.pct).map((f) => `${f.name || "?"} ${f.pct}%`).join(", ") || "No flavours"} · ${r.maxVg ? "Max VG" : (100 - r.vg) + "/" + r.vg} · ${r.target} mg`;
+      b.append(t, s);
+      if (stash.items.length) {
+        const c = stockCheck(calc(r, supplies).rows, stash);
+        const short = c.lines.filter((l) => l.status === "short").length, miss = c.lines.filter((l) => l.status === "missing").length;
+        const chip = document.createElement("span");
+        chip.className = "chip " + (miss ? "missing" : short ? "short" : "ok");
+        chip.textContent = miss ? `${miss} not in stash` : short ? `Short of ${short}` : "Ready to mix";
+        const row = document.createElement("small"); row.append(chip);
+        if (c.cost > 0) row.append(` ${money(c.cost)} a batch`);
+        b.append(row);
+      }
+      b.onclick = () => { cur = structuredClone(r); fillForm(); render(); renderLib(); $("confirm").hidden = true; };
+      box.appendChild(b);
+    }
+  }
+
+  function toast(m) { $("toast").textContent = m; clearTimeout(toast.t); toast.t = setTimeout(() => ($("toast").textContent = ""), 2500); }
+  const newId = () => "r_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+  async function save(asCopy) {
+    readForm();
+    if (!cur.name.trim()) { $("name").focus(); toast("Give the recipe a name first."); return; }
+    if (asCopy || !cur.id) { cur.id = newId(); if (asCopy) cur.name = cur.name + " (copy)"; }
+    delete cur.example; cur.updatedAt = Date.now();
+    cur.flavours = cur.flavours.filter((f) => f.name || f.pct);
+    try { await persist(cur); fillForm(); render(); renderLib(); renderStashView(); toast(asCopy ? "Saved as a copy." : "Saved."); }
+    catch (e) { toast("Couldn't save the recipe file. Check the disk isn't full."); }
+  }
+
+  function recipeText() {
+    const res = calc(cur, supplies);
+    const lines = [`${cur.name || "Untitled recipe"}`, `${fmt(cur.batch, 0)} ml · ${cur.target} mg/ml · ${cur.maxVg ? "Max VG" : (100 - cur.vg) + "/" + cur.vg + " PG/VG"}${cur.steep ? " · steep " + cur.steep + " days" : ""}`, ""];
+    for (const x of res.rows) lines.push(byWeight ? `${x.name}: ${fmt(x.ml)} ml / ${fmt(x.g)} g (${fmt(x.pct, 1)}%)` : `${x.name}: ${fmt(x.ml)} ml (${fmt(x.pct, 1)}%)`);
+    if (cur.notes) lines.push("", cur.notes);
+    return lines.join("\n");
+  }
+
+  // ---------- wire up ----------
+  ["name", "batch", "target", "steep", "vg", "maxvg", "addname", "addpct", "notes"].forEach((id) => $(id).addEventListener("input", () => { readForm(); render(); }));
+  ["nicstr", "nicpg", "nicvg", "dnic", "dpg", "dvg", "dw"].forEach((id) => $(id).addEventListener("input", () => { readForm(); saveSupplies(); render(); }));
+  $("resetd").onclick = () => { supplies.dens = { ...DEFAULT_DENS }; fillSupplies(); saveSupplies(); render(); };
+  $("addflav").onclick = () => { cur.flavours.push({ name: "", pct: 0, base: "pg" }); renderFlavs(); render(); $("fn" + (cur.flavours.length - 1)).focus(); };
+  $("new").onclick = () => { cur = blank(); fillForm(); render(); renderLib(); $("name").focus(); };
+  $("save").onclick = () => save(false);
+  $("saveas").onclick = () => save(true);
+  $("del").onclick = () => { if (cur.id) $("confirm").hidden = false; };
+  $("del-no").onclick = () => { $("confirm").hidden = true; };
+  $("del-yes").onclick = async () => {
+    $("confirm").hidden = true;
+    try { await remove(cur.id); cur = blank(); fillForm(); render(); renderLib(); renderStashView(); toast("Recipe deleted."); } catch { toast("Couldn't delete it. Try again in a moment."); }
+  };
+  $("copy").onclick = async () => {
+    const t = recipeText();
+    try { window.juiceStore.copy(t); toast("Recipe copied."); }
+    catch { const c = $("copybox"); c.value = t; c.hidden = false; c.rows = t.split("\n").length; c.select(); toast("Copying isn't allowed here. The text below is selected, so press Ctrl+C or long-press to copy."); }
+  };
+  $("search").addEventListener("input", renderLib);
+  const setMixBy = (w) => { byWeight = w; supplies.mixBy = w ? "weight" : "volume"; saveSupplies(); applyMixBy(); render(); };
+  $("by-volume").onclick = () => setMixBy(false);
+  $("by-weight").onclick = () => setMixBy(true);
+  $("steep-use").onclick = () => { $("steep").value = $("steep-use").dataset.days; readForm(); render(); };
+  $("export").onclick = async () => {
+    const r = await window.juiceStore.exportRecipes({ exportedAt: new Date().toISOString(), appVersion: window.juiceStore.version, recipes, supplies, stash: JSON.parse(JSON.stringify(stash, (k, v) => (k === "_confirm" ? undefined : v))), history });
+    if (r) toast(`Exported ${recipes.length} recipe${recipes.length === 1 ? "" : "s"} and ${stash.items.length} stash flavour${stash.items.length === 1 ? "" : "s"}.`);
+  };
+  let pendingImport = null;
+  $("import").onclick = async () => {
+    const data = await window.juiceStore.importRecipes();
+    if (!data) return;
+    const d = Array.isArray(data) ? { recipes: data } : data;
+    const okRecipes = Array.isArray(d.recipes) ? d.recipes.filter((r) => r && typeof r === "object" && Array.isArray(r.flavours)) : [];
+    const okItems = d.stash && Array.isArray(d.stash.items) ? d.stash.items.filter((it) => it && typeof it === "object" && it.name) : [];
+    const okHistory = Array.isArray(d.history) ? d.history.filter((h) => h && typeof h === "object" && h.at) : [];
+    if (!okRecipes.length && !okItems.length && !okHistory.length && !d.supplies) { toast("That file doesn't contain Juice Calc data."); return; }
+    pendingImport = { recipes: okRecipes, stash: d.stash && typeof d.stash === "object" ? { ...d.stash, items: okItems } : null, history: okHistory, supplies: d.supplies && d.supplies.nic ? d.supplies : null };
+    const when = d.exportedAt ? ` exported ${new Date(d.exportedAt).toLocaleString()}` : "";
+    const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+    $("import-summary").textContent = `This file${when} has ${plural(okRecipes.length, "recipe")}, ${plural(okItems.length, "stash flavour")}, ${plural(okHistory.length, "mix log entry").replace("entrys", "entries")}${pendingImport.supplies ? ", and nicotine base settings" : ""}.`;
+    $("import-panel").hidden = false;
+  };
+  $("imp-cancel").onclick = () => { pendingImport = null; $("import-panel").hidden = true; };
+
+  function afterImport(msg) {
+    pendingImport = null; $("import-panel").hidden = true;
+    lsSet(LS_RECIPES, recipes); lsSet(LS_SUPPLIES, supplies); saveStash(); saveHistory();
+    cur = structuredClone(recipes[0] || EXAMPLE);
+    byWeight = supplies.mixBy === "weight"; applyMixBy(); fillSupplies(); fillBase(); resetStashForm(); fillForm(); renderStashView(); render(); renderLib();
+    toast(msg);
+  }
+
+  $("imp-replace").onclick = () => {
+    const d = pendingImport; if (!d) return;
+    window.juiceStore.backup();
+    recipes = d.recipes.map((r) => ({ ...structuredClone(r), id: r.id || newId() }));
+    recipes.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    if (d.supplies) supplies = Object.assign({ nic: { strength: 100, pg: 100, vg: 0 }, dens: { ...DEFAULT_DENS } }, structuredClone(d.supplies));
+    const st = d.stash || {};
+    stash = { items: (st.items || []).map((it) => ({ ...structuredClone(it), id: it.id || newItemId() })), base: Object.assign({ nic: {}, pg: {}, vg: {} }, structuredClone(st.base || {})), currency: st.currency != null ? st.currency : stash.currency };
+    history = structuredClone(d.history).sort((a, b) => b.at - a.at);
+    afterImport("Replaced your data with the file's. " + (window.juiceStore.backupNote || "Your old data was backed up in the data folder."));
+  };
+
+  $("imp-merge").onclick = () => {
+    const d = pendingImport; if (!d) return;
+    let nr = 0, ur = 0, ni = 0, nh = 0;
+    for (const r of d.recipes) {
+      const i = r.id ? recipes.findIndex((x) => x.id === r.id) : -1;
+      if (i < 0) { recipes.push({ ...structuredClone(r), id: r.id || newId() }); nr++; }
+      else if ((r.updatedAt || 0) > (recipes[i].updatedAt || 0)) { recipes[i] = structuredClone(r); ur++; }
+    }
+    recipes.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    if (d.stash) {
+      for (const it of d.stash.items) {
+        if (stash.items.some((x) => (it.id && x.id === it.id) || norm(itemLabel(x)) === norm(itemLabel(it)))) continue;
+        stash.items.push({ ...structuredClone(it), id: it.id || newItemId() }); ni++;
+      }
+      for (const k of ["nic", "pg", "vg"]) {
+        const mine = stash.base[k] || {}, theirs = (d.stash.base || {})[k];
+        if (theirs && (mine.remainingMl == null || mine.remainingMl === "")) stash.base[k] = structuredClone(theirs);
+      }
+      if (!stash.currency && d.stash.currency) stash.currency = d.stash.currency;
+    }
+    for (const h of d.history) if (!h.id || !history.some((x) => x.id === h.id)) { history.push({ ...structuredClone(h), id: h.id || "m_" + Math.random().toString(36).slice(2), imported: true }); nh++; }
+    history.sort((a, b) => b.at - a.at);
+    if (d.supplies && lsGet(LS_SUPPLIES, null) == null) supplies = Object.assign({ nic: { strength: 100, pg: 100, vg: 0 }, dens: { ...DEFAULT_DENS } }, structuredClone(d.supplies));
+    const parts = [];
+    if (nr) parts.push(`${nr} new recipe${nr === 1 ? "" : "s"}`);
+    if (ur) parts.push(`${ur} updated recipe${ur === 1 ? "" : "s"}`);
+    if (ni) parts.push(`${ni} stash flavour${ni === 1 ? "" : "s"}`);
+    if (nh) parts.push(`${nh} mix log entr${nh === 1 ? "y" : "ies"}`);
+    afterImport(parts.length ? `Merged ${parts.join(", ")}.` : "Everything in that file was already here.");
+  };
+
+  // ---------- stash ----------
+  const newItemId = () => "f_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  const effProfile = (it) => it.profile === "other" ? null : (it.profile || detectProfile(it.name));
+  const stashToast = (m) => { $("stash-toast").textContent = m; clearTimeout(stashToast.t); stashToast.t = setTimeout(() => ($("stash-toast").textContent = ""), 2500); };
+  let editingId = null, buyingId = null;
+
+  function fillProfileSelect() {
+    const sel = $("sf-profile"), keep = sel.value;
+    sel.textContent = "";
+    const auto = document.createElement("option"); auto.value = "";
+    const det = detectProfile($("sf-name").value);
+    auto.textContent = det ? `Auto: ${PROFILE_BY_ID[det].label}` : "Auto (not recognised)";
+    sel.appendChild(auto);
+    for (const p of [...PROFILES].sort((a, b) => a.label.localeCompare(b.label))) {
+      const o = document.createElement("option"); o.value = p.id; o.textContent = p.label; sel.appendChild(o);
+    }
+    const other = document.createElement("option"); other.value = "other"; other.textContent = "Other (no pairing ideas)"; sel.appendChild(other);
+    sel.value = keep;
+  }
+
+  function resetStashForm() {
+    editingId = null;
+    ["sf-name", "sf-brand", "sf-ml", "sf-price", "sf-left", "sf-full"].forEach((id) => ($(id).value = ""));
+    $("sf-qty").value = 1; $("sf-qty-wrap").hidden = false;
+    $("sf-low").value = 5; $("sf-base").value = "pg"; $("sf-profile").value = "";
+    $("sf-title").textContent = "Add a flavour"; $("sf-save").textContent = "Add to stash";
+    $("sf-cancel").hidden = true; $("sf-left-wrap").hidden = true;
+    fillProfileSelect();
+  }
+
+  function saveStashForm() {
+    const name = $("sf-name").value.trim();
+    if (!name) { $("sf-name").focus(); stashToast("Enter the flavour name first."); return; }
+    const brand = $("sf-brand").value.trim(), ml = +$("sf-ml").value || 0, price = +$("sf-price").value || 0;
+    const qty = Math.max(1, Math.floor(+$("sf-qty").value || 1));
+    const bottleWord = (n) => `${n} bottle${n === 1 ? "" : "s"}`;
+    const fields = { name, brand, profile: $("sf-profile").value, base: $("sf-base").value, lowMl: $("sf-low").value === "" ? 5 : +$("sf-low").value };
+    if (editingId) {
+      const it = stash.items.find((x) => x.id === editingId);
+      const oldLabel = itemLabel(it), oldName = it.name;
+      Object.assign(it, fields, { bottleMl: ml || it.bottleMl, price: price || it.price });
+      if (norm(itemLabel(it)) !== norm(oldLabel)) {
+        let renamed = 0;
+        const fix = (f) => { if (norm(f.name) === norm(oldLabel) || norm(f.name) === norm(oldName)) { f.name = itemLabel(it); renamed++; } };
+        for (const r of recipes) (r.flavours || []).forEach(fix);
+        (cur.flavours || []).forEach(fix);
+        if (renamed) { lsSet(LS_RECIPES, recipes); renderFlavs(); }
+      }
+      if ($("sf-left").value !== "" || $("sf-full").value !== "") {
+        const full = Math.max(0, Math.floor(+$("sf-full").value || 0)), open = Math.max(0, +$("sf-left").value || 0);
+        it.remainingMl = Math.round((full * (it.bottleMl || 0) + open) * 1000) / 1000;
+      }
+      stashToast(`Updated ${itemLabel(it)}.`);
+    } else {
+      const dup = stash.items.find((x) => norm(itemLabel(x)) === norm(brand ? `${name} (${brand})` : name));
+      if (dup) {
+        Object.assign(dup, addPurchase(dup, ml, price, null, qty));
+        stashToast(`You already had ${itemLabel(dup)}, so I added ${qty === 1 ? "this bottle" : "these " + bottleWord(qty)} to it.`);
+      } else {
+        const it = addPurchase({ id: newItemId(), ...fields, remainingMl: 0, bottleMl: ml, price }, ml, price, null, qty);
+        stash.items.push(it);
+        stashToast(ml > 0 ? `Added ${bottleWord(qty)} of ${itemLabel(it)}.` : `Added ${itemLabel(it)}.`);
+      }
+    }
+    saveStash(); resetStashForm(); renderStashView(); render(); renderLib();
+  }
+
+  function editItem(it) {
+    editingId = it.id;
+    $("sf-name").value = it.name; $("sf-brand").value = it.brand || ""; $("sf-ml").value = it.bottleMl || ""; $("sf-price").value = it.price || "";
+    $("sf-low").value = it.lowMl != null ? it.lowMl : 5; $("sf-base").value = it.base || "pg";
+    const bh = bottlesOnHand(it);
+    $("sf-full").value = bh ? bh.full : 0; $("sf-left").value = bh ? bh.openMl : (it.remainingMl || 0);
+    $("sf-qty-wrap").hidden = true;
+    fillProfileSelect(); $("sf-profile").value = it.profile || "";
+    $("sf-title").textContent = `Edit ${itemLabel(it)}`; $("sf-save").textContent = "Save changes";
+    $("sf-cancel").hidden = false; $("sf-left-wrap").hidden = false;
+    $("sf-name").focus();
+  }
+
+  function renderStashRows() {
+    const q = norm($("stash-search").value);
+    const tb = $("stash-rows"); tb.textContent = "";
+    const owned = new Set(stash.items.filter((x) => x.remainingMl > 0).map(effProfile));
+    const list = stash.items.filter((it) => !q || norm(itemLabel(it)).includes(q)).sort((a, b) => a.name.localeCompare(b.name));
+    if (!list.length) {
+      const tr = document.createElement("tr"); const td = document.createElement("td"); td.colSpan = 4; td.className = "empty";
+      td.textContent = stash.items.length ? "No flavours match that search." : "Your stash is empty. Add the flavours you own above, with the bottle size and price.";
+      tr.appendChild(td); tb.appendChild(tr); return;
+    }
+    for (const it of list) {
+      const tr = document.createElement("tr");
+      const c1 = document.createElement("td");
+      const nm = document.createElement("span"); nm.textContent = itemLabel(it);
+      const pr = effProfile(it);
+      const meta = document.createElement("small");
+      const partners = pr ? partnersOf(pr).sort((a, b) => owned.has(b) - owned.has(a)).slice(0, 5).map((id) => PROFILE_BY_ID[id].label + (owned.has(id) ? " ✓" : "")) : [];
+      meta.textContent = (pr ? PROFILE_BY_ID[pr].label : "Other") + (partners.length ? ` · goes with ${partners.join(", ")}` : "");
+      c1.append(nm, meta);
+      const c2 = document.createElement("td");
+      c2.textContent = fmt(it.remainingMl || 0, 1) + " ml";
+      const bh = bottlesOnHand(it);
+      const lv = document.createElement("div"); lv.className = "level" + (isLow(it) ? " low" : "");
+      // the bar shows the open bottle; full bottles are counted underneath
+      const openPct = bh ? (bh.openMl ? bh.openMl / it.bottleMl * 100 : (bh.full ? 100 : 0)) : 0;
+      const fill = document.createElement("i"); fill.style.width = Math.min(100, openPct) + "%"; lv.appendChild(fill);
+      c2.appendChild(lv);
+      if (bh) { const d = document.createElement("small"); d.textContent = describeBottles(it); c2.appendChild(d); }
+      if (isLow(it)) { const w = document.createElement("small"); w.className = "st-short"; w.textContent = "Running low"; c2.appendChild(w); }
+      const c3 = document.createElement("td"); const u = perMl(it); c3.textContent = u != null ? money(u) : "–";
+      const c4 = document.createElement("td"); const ra = document.createElement("div"); ra.className = "row-actions";
+      const btn = (label, fn, cls) => { const b = document.createElement("button"); b.type = "button"; b.textContent = label; if (cls) b.className = cls; b.onclick = fn; ra.appendChild(b); return b; };
+      btn("Bought more", () => { buyingId = buyingId === it.id ? null : it.id; renderStashRows(); });
+      btn("Edit", () => editItem(it));
+      btn("Delete", () => { it._confirm = true; renderStashRows(); }, "danger");
+      c4.appendChild(ra);
+      tr.append(c1, c2, c3, c4); tb.appendChild(tr);
+
+      if (it._confirm) {
+        const r2 = document.createElement("tr"); const td = document.createElement("td"); td.colSpan = 4;
+        const box = document.createElement("div"); box.className = "confirm";
+        const sp = document.createElement("span"); sp.textContent = `Remove ${itemLabel(it)} from your stash?`;
+        const yes = document.createElement("button"); yes.type = "button"; yes.className = "danger"; yes.textContent = "Remove";
+        yes.onclick = () => { stash.items = stash.items.filter((x) => x.id !== it.id); saveStash(); renderStashView(); render(); renderLib(); stashToast(`Removed ${itemLabel(it)}.`); };
+        const no = document.createElement("button"); no.type = "button"; no.textContent = "Keep it"; no.onclick = () => { delete it._confirm; renderStashRows(); };
+        box.append(sp, yes, no); td.appendChild(box); r2.appendChild(td); tb.appendChild(r2);
+      }
+      if (buyingId === it.id) {
+        const r2 = document.createElement("tr"); const td = document.createElement("td"); td.colSpan = 4;
+        const f = document.createElement("div"); f.className = "inline-form";
+        f.innerHTML = `<div class="field"><label for="buy-qty">Bottles</label><input id="buy-qty" type="number" min="1" step="1" value="1"></div>
+          <div class="field"><label for="buy-ml">Bottle size</label><div class="unit"><input id="buy-ml" type="number" min="0" step="1"><em>ml</em></div></div>
+          <div class="field"><label for="buy-price">Price per bottle</label><div class="unit"><input id="buy-price" type="number" min="0" step="0.01"><em></em></div></div>
+          <button class="primary" type="button" id="buy-add">Add to stock</button><button type="button" id="buy-cancel">Cancel</button>`;
+        td.appendChild(f); r2.appendChild(td); tb.appendChild(r2);
+        f.querySelectorAll(".unit em")[1].textContent = stash.currency || "";
+        const mlIn = f.querySelector("#buy-ml"), prIn = f.querySelector("#buy-price");
+        mlIn.value = it.bottleMl || ""; prIn.value = it.price || "";
+        f.querySelector("#buy-add").onclick = () => {
+          const ml = +mlIn.value || 0;
+          if (ml <= 0) { mlIn.focus(); return; }
+          const qty = Math.max(1, Math.floor(+f.querySelector("#buy-qty").value || 1));
+          Object.assign(it, addPurchase(it, ml, +prIn.value || 0, null, qty));
+          buyingId = null; saveStash(); renderStashView(); render(); renderLib();
+          stashToast(`Added ${qty} bottle${qty === 1 ? "" : "s"} (${fmt(ml * qty, 0)} ml) of ${itemLabel(it)}.`);
+        };
+        f.querySelector("#buy-cancel").onclick = () => { buyingId = null; renderStashRows(); };
+        const qIn = f.querySelector("#buy-qty"); qIn.focus(); qIn.select();
+      }
+    }
+  }
+
+  function fillBase() {
+    for (const k of ["nic", "pg", "vg"]) {
+      const b = stash.base[k] || {};
+      $(`b-${k}-left`).value = b.remainingMl ?? ""; $(`b-${k}-ml`).value = b.bottleMl ?? ""; $(`b-${k}-price`).value = b.price ?? "";
+    }
+    $("currency").value = stash.currency || "";
+    document.querySelectorAll("em.cur").forEach((e) => (e.textContent = stash.currency || ""));
+  }
+  function readBase() {
+    const num = (id) => ($(id).value === "" ? null : +$(id).value);
+    for (const k of ["nic", "pg", "vg"]) stash.base[k] = { remainingMl: num(`b-${k}-left`), bottleMl: num(`b-${k}-ml`), price: num(`b-${k}-price`) };
+    stash.currency = $("currency").value;
+    document.querySelectorAll("em.cur").forEach((e) => (e.textContent = stash.currency || ""));
+  }
+
+  function useIdea(idea) {
+    cur = blank();
+    cur.name = idea.name;
+    cur.flavours = idea.picks.map((p) => ({ name: itemLabel(p.item), pct: p.pct, base: p.item.base || "pg" }));
+    cur.notes = "Started from a pairing idea. Adjust the percentages for your brands.";
+    showTab("mix"); fillForm(); render(); renderLib();
+  }
+
+  function li(left, right, cls) {
+    const l = document.createElement("li");
+    const a = document.createElement("span"); if (left instanceof Node) a.append(left); else a.textContent = left;
+    const b = document.createElement("span"); b.textContent = right || ""; if (cls) b.className = cls;
+    l.append(a, b); return l;
+  }
+  function emptyLi(text) { const l = document.createElement("li"); l.className = "empty"; l.textContent = text; return l; }
+
+  function shoppingLines() {
+    const lines = [];
+    for (const it of stash.items) if (isLow(it)) lines.push([itemLabel(it), `${fmt(it.remainingMl || 0, 1)} ml left`]);
+    const names = { nic: "Nicotine base", pg: "PG", vg: "VG" };
+    for (const k of ["nic", "pg", "vg"]) {
+      const b = stash.base[k];
+      if (b && b.remainingMl != null && b.bottleMl > 0 && b.remainingMl < b.bottleMl * 0.15) lines.push([names[k], `${fmt(b.remainingMl, 0)} ml left`]);
+    }
+    const need = {};
+    for (const r of recipes) {
+      const c = stockCheck(calc(r, supplies).rows, stash);
+      for (const l of c.lines) if (l.kind === "flav" && (l.status === "missing" || l.status === "short")) {
+        const key = norm(l.name);
+        need[key] = need[key] || { name: l.name, missing: l.status === "missing", recipes: new Set() };
+        need[key].recipes.add(r.name || "Untitled");
+      }
+    }
+    for (const k in need) {
+      const n = need[k];
+      if (lines.some((x) => norm(x[0]) === k)) continue;
+      lines.push([n.name, `${n.missing ? "not in stash" : "not enough"} for ${[...n.recipes].join(", ")}`]);
+    }
+    return lines;
+  }
+
+  function renderStashView() {
+    // datalist for the Mix screen
+    const dl = $("stash-names"); dl.textContent = "";
+    for (const it of stash.items) { const o = document.createElement("option"); o.value = itemLabel(it); dl.appendChild(o); }
+
+    renderStashRows();
+
+    // ideas
+    const sg = suggest(stash.items.map((it) => ({ ...it, profile: effProfile(it) || "other" })));
+    const box = $("ideas"); box.textContent = "";
+    if (!sg.ready.length) {
+      const p = document.createElement("p"); p.className = "empty";
+      p.textContent = stash.items.length ? "No complete combinations yet. Check Worth buying next below." : "Add the flavours you own and ideas will appear here.";
+      box.appendChild(p);
+    }
+    for (const idea of sg.ready) {
+      const d = document.createElement("div"); d.className = "idea";
+      const h = document.createElement("div"); h.className = "idea-head";
+      const t = document.createElement("b"); t.textContent = idea.name;
+      const go = document.createElement("button"); go.type = "button"; go.textContent = "Try this mix"; go.onclick = () => useIdea(idea);
+      h.append(t, go);
+      const ul = document.createElement("ul");
+      for (const p of idea.picks) { const l = document.createElement("li"); l.textContent = itemLabel(p.item) + " "; const s = document.createElement("span"); s.textContent = p.pct + "%"; l.appendChild(s); ul.appendChild(l); }
+      d.append(h, ul); box.appendChild(d);
+    }
+
+    // buy next: which missing flavour type unlocks the most ideas
+    const unlock = {};
+    for (const a of sg.almost) (unlock[a.missing] = unlock[a.missing] || []).push(a.name);
+    const bn = $("buy-next"); bn.textContent = "";
+    const ranked = Object.entries(unlock).sort((a, b) => b[1].length - a[1].length).slice(0, 6);
+    if (!ranked.length) bn.appendChild(emptyLi(stash.items.length ? "Nothing to suggest yet." : "Add some flavours first."));
+    for (const [what, names] of ranked) bn.appendChild(li(what, `unlocks ${names.join(", ")}`));
+
+    // what can I make
+    const cm = $("can-make"); cm.textContent = "";
+    if (!recipes.length) cm.appendChild(emptyLi("Save some recipes on the Mix screen to see them here."));
+    for (const r of recipes) {
+      const c = stockCheck(calc(r, supplies).rows, stash);
+      const bad = c.lines.filter((l) => l.status === "missing" || l.status === "short");
+      const chip = document.createElement("span"); chip.className = "chip " + (bad.length ? (bad.some((l) => l.status === "missing") ? "missing" : "short") : "ok");
+      chip.textContent = bad.length ? "Needs stock" : "Ready";
+      const left = document.createElement("span"); left.append(chip, " " + (r.name || "Untitled"));
+      const right = bad.length ? bad.map((l) => l.status === "missing" ? `${l.name} (none)` : `${l.name} (${fmt(l.needMl - l.haveMl, 1)} ml short)`).join(", ") : (c.cost > 0 ? `${money(c.cost)} a batch` : "");
+      const item = li(left, right); item.style.cursor = "pointer"; item.title = "Open on the Mix screen";
+      item.onclick = () => { cur = structuredClone(r); showTab("mix"); fillForm(); render(); renderLib(); };
+      cm.appendChild(item);
+    }
+
+    // shopping
+    const sh = $("shopping"); sh.textContent = "";
+    const lines = shoppingLines();
+    if (!lines.length) sh.appendChild(emptyLi("Nothing to buy right now."));
+    for (const [a, b] of lines) sh.appendChild(li(a, b));
+
+    // history
+    const hl = $("history"); hl.textContent = "";
+    if (!history.length) hl.appendChild(emptyLi("Batches you mark as mixed appear here."));
+    for (const h of history.slice(0, 30)) {
+      const when = new Date(h.at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+      const left = document.createElement("span");
+      let ready = "";
+      if (h.steepDays > 0 && !h.undone) {
+        const at = new Date(h.at + h.steepDays * 86400000);
+        ready = at > new Date() ? ` · ready ${at.toLocaleDateString(undefined, { day: "numeric", month: "short" })}` : " · steeped";
+      }
+      left.textContent = `${when} · ${h.name} · ${fmt(h.batch, 0)} ml${h.cost > 0 ? " · " + money(h.cost) : ""}${ready}${h.undone ? " (undone)" : ""}`;
+      const l = document.createElement("li"); l.appendChild(left);
+      if (h.imported) { const s2 = document.createElement("span"); s2.className = "muted"; s2.textContent = "from another computer"; l.appendChild(s2); }
+      else if (!h.undone) {
+        const u = document.createElement("button"); u.type = "button"; u.className = "ghost"; u.textContent = "Undo";
+        u.onclick = () => { stash = undoMix(stash, h.used); h.undone = true; saveStash(); saveHistory(); renderStashView(); render(); renderLib(); };
+        l.appendChild(u);
+      }
+      hl.appendChild(l);
+    }
+  }
+
+  function showTab(which) {
+    const mix = which === "mix";
+    $("view-mix").hidden = !mix; $("view-stash").hidden = mix;
+    $("tab-mix").setAttribute("aria-selected", mix); $("tab-stash").setAttribute("aria-selected", !mix);
+    if (!mix) renderStashView();
+  }
+
+  // mark a batch as mixed
+  $("mixed").onclick = () => {
+    if (!lastCheck) return;
+    const { res, chk } = lastCheck;
+    if (res.errors.length) { toast("Fix the problems shown above before marking this batch as mixed."); return; }
+    const takes = chk.lines.filter((l) => l.status === "ok" || l.status === "short").map((l) => `${fmt(Math.min(l.needMl, l.haveMl), 1)} ml ${l.name}`);
+    const probs = chk.lines.filter((l) => l.status === "short" || l.status === "missing").map((l) => l.status === "missing" ? `${l.name} isn't in your stash, so nothing is taken for it.` : `You only have ${fmt(l.haveMl, 1)} ml of ${l.name}, so it will go to 0.`);
+    const sm = $("mix-summary"); sm.textContent = "";
+    const p1 = document.createElement("div"); p1.textContent = takes.length ? `This takes ${takes.join(", ")} out of your stash and adds the batch to your mix log.` : "Nothing in this batch is tracked in your stash, but it will still be added to your mix log.";
+    sm.appendChild(p1);
+    for (const m of probs) { const d = document.createElement("div"); d.className = "st-short"; d.textContent = m; sm.appendChild(d); }
+    $("mix-confirm").hidden = false;
+  };
+  $("mix-no").onclick = () => { $("mix-confirm").hidden = true; };
+  $("mix-yes").onclick = () => {
+    readForm();
+    const res = calc(cur, supplies), chk = stockCheck(res.rows, stash);
+    const out = applyMix(stash, res.rows);
+    stash = out.stash;
+    history.unshift({ id: "m_" + Date.now().toString(36), at: Date.now(), recipeId: cur.id, name: cur.name || "Untitled recipe", batch: cur.batch, target: cur.target, used: out.used, cost: chk.cost, costComplete: chk.costComplete, steepDays: steepDaysFor(cur) });
+    history = history.slice(0, 500);
+    saveStash(); saveHistory();
+    render(); renderLib(); renderStashView();
+    toast("Batch logged and taken out of your stash.");
+  };
+
+  $("tab-mix").onclick = () => showTab("mix");
+  $("tab-stash").onclick = () => showTab("stash");
+  $("sf-save").onclick = saveStashForm;
+  $("sf-cancel").onclick = resetStashForm;
+  $("sf-name").addEventListener("input", fillProfileSelect);
+  $("stash-search").addEventListener("input", renderStashRows);
+  ["b-nic-left", "b-nic-ml", "b-nic-price", "b-pg-left", "b-pg-ml", "b-pg-price", "b-vg-left", "b-vg-ml", "b-vg-price", "currency"].forEach((id) =>
+    $(id).addEventListener("input", () => { readBase(); saveStash(); render(); renderLib(); renderStashView(); }));
+  $("copy-shop").onclick = () => {
+    const lines = shoppingLines();
+    const t = lines.length ? "Shopping list\n" + lines.map(([a, b]) => `- ${a}: ${b}`).join("\n") : "Shopping list: nothing needed.";
+    try { window.juiceStore.copy(t); stashToast("Shopping list copied."); } catch { stashToast("Couldn't copy the list."); }
+  };
+  $("ver").textContent = window.juiceStore.version || "";
+  if (window.juiceStore.savedWhere) $("saved-where").textContent = window.juiceStore.savedWhere;
+
+  byWeight = supplies.mixBy === "weight"; applyMixBy(); fillSupplies(); fillBase(); resetStashForm(); fillForm(); renderStashView(); render(); renderLib();
+})();
+</script>
+
+</body>
+</html>
